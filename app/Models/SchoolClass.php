@@ -41,6 +41,11 @@ class SchoolClass extends Model
         return $this->belongsTo(User::class, 'homeroom_teacher_id');
     }
 
+    public function enrollments()
+    {
+    return $this->hasMany(ClassStudent::class, 'class_id');
+    }
+
     // classStudents() / courses() are intentionally omitted — those tables
     // don't exist yet (Phase 2C+). Add hasMany() relations there.
 }

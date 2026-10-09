@@ -59,4 +59,9 @@ class User extends Authenticatable
     {
         return $this->hasRole(Role::STUDENT);
     }
+
+    public function enrollments()
+    {
+    return $this->hasMany(ClassStudent::class, 'user_id');
+    }
 }
