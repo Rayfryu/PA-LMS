@@ -6,19 +6,26 @@ const props = defineProps({
     courses: Object,
     subjects: Array,
     schoolClasses: Array,
+    teachers: Array,
     filters: Object,
     can: Object,
 });
 
 const search = ref(props.filters?.search || '');
 const showModal = ref(false);
+const showTeacherModal = ref(false);
 const isEditing = ref(false);
 const editingId = ref(null);
+const selectedCourse = ref(null);
 
 const form = useForm({
     subject_id: '',
     school_class_id: '',
     is_active: true,
+});
+
+const teacherForm = useForm({
+    teacher_id: '',
 });
 
 let searchTimeout;
@@ -49,9 +56,21 @@ const openEditModal = (course) => {
     showModal.value = true;
 };
 
+const openTeacherModal = (course) => {
+    selectedCourse.value = course;
+    teacherForm.teacher_id = course.teacher_id || '';
+    showTeacherModal.value = true;
+};
+
 const closeModal = () => {
     showModal.value = false;
     form.reset();
+};
+
+const closeTeacherModal = () => {
+    showTeacherModal.value = false;
+    teacherForm.reset();
+    selectedCourse.value = null;
 };
 
 const submit = () => {
@@ -66,12 +85,20 @@ const submit = () => {
     }
 };
 
+const submitAssignTeacher = () => {
+    if (!selectedCourse.value) return;
+
+    teacherForm.put(`/admin/courses/${selectedCourse.value.id}/assign-teacher`, {
+        onSuccess: () => closeTeacherModal(),
+    });
+};
+
 const toggleStatus = (course) => {
     router.post(`/admin/courses/${course.id}/toggle-status`);
 };
 
 const deleteCourse = (course) => {
-    if (confirm(`Are you sure you want to delete the course offering "${course.subject?.name}" for ${course.school_class?.name}?`)) {
+    if (confirm(`Apakah Anda yakin ingin menghapus course "${course.subject?.name}" untuk ${course.school_class?.name}?`)) {
         router.delete(`/admin/courses/${course.id}`);
     }
 };
@@ -82,7 +109,7 @@ const deleteCourse = (course) => {
         <div class="flex justify-between items-center mb-6">
             <div>
                 <h1 class="text-2xl font-bold text-gray-800">Course Management</h1>
-                <p class="text-sm text-gray-500">Manage subject offerings assigned to school classes.</p>
+                <p class="text-sm text-gray-500">Kelola penawaran mata pelajaran dan penugasan guru pengajar.</p>
             </div>
             <button v-if="can.create" @click="openCreateModal" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition text-sm">
                 + Create Course Offering
@@ -91,7 +118,7 @@ const deleteCourse = (course) => {
 
         <!-- Search Bar -->
         <div class="mb-4">
-            <input v-model="search" type="text" placeholder="Search by subject code/name or class name..." class="w-full max-w-md border rounded-lg p-2 text-sm focus:ring-2 focus:ring-blue-500" />
+            <input v-model="search" type="text" placeholder="Cari berdasarkan kode/nama subjek, kelas, atau pengajar..." class="w-full max-w-md border rounded-lg p-2 text-sm focus:ring-2 focus:ring-blue-500" />
         </div>
 
         <!-- Courses Table -->
@@ -103,6 +130,7 @@ const deleteCourse = (course) => {
                         <th class="p-4">Subject Name</th>
                         <th class="p-4">Class</th>
                         <th class="p-4">Academic Year</th>
+                        <th class="p-4">Teacher</th>
                         <th class="p-4">Status</th>
                         <th v-if="can.update || can.delete" class="p-4 text-right">Actions</th>
                     </tr>
@@ -114,11 +142,22 @@ const deleteCourse = (course) => {
                         <td class="p-4 text-gray-700">{{ course.school_class?.name || '-' }}</td>
                         <td class="p-4 text-gray-500">{{ course.academic_year?.name || '-' }}</td>
                         <td class="p-4">
+                            <span v-if="course.teacher" class="font-medium text-gray-800">
+                                {{ course.teacher.name }}
+                            </span>
+                            <span v-else class="text-xs italic text-gray-400">
+                                Belum Ditugaskan
+                            </span>
+                        </td>
+                        <td class="p-4">
                             <span :class="course.is_active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'" class="px-2 py-1 text-xs font-semibold rounded-full">
                                 {{ course.is_active ? 'Active' : 'Inactive' }}
                             </span>
                         </td>
                         <td v-if="can.update || can.delete" class="p-4 text-right space-x-2">
+                            <button v-if="can.update" @click="openTeacherModal(course)" class="text-xs px-2 py-1 bg-indigo-50 text-indigo-700 border border-indigo-200 rounded hover:bg-indigo-100 font-medium">
+                                Assign Teacher
+                            </button>
                             <button v-if="can.update" @click="toggleStatus(course)" class="text-xs px-2 py-1 border rounded hover:bg-gray-100">
                                 {{ course.is_active ? 'Deactivate' : 'Activate' }}
                             </button>
@@ -131,13 +170,13 @@ const deleteCourse = (course) => {
                         </td>
                     </tr>
                     <tr v-if="courses.data.length === 0">
-                        <td colspan="6" class="p-4 text-center text-gray-500">No course offerings found.</td>
+                        <td colspan="7" class="p-4 text-center text-gray-500">Tidak ada course offering ditemukan.</td>
                     </tr>
                 </tbody>
             </table>
         </div>
 
-        <!-- Modal -->
+        <!-- Modal Create/Edit Course -->
         <div v-if="showModal" class="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
             <div class="bg-white rounded-lg p-6 max-w-md w-full">
                 <h2 class="text-lg font-bold mb-4">{{ isEditing ? 'Edit Course Offering' : 'Create Course Offering' }}</h2>
@@ -172,6 +211,34 @@ const deleteCourse = (course) => {
                     <div class="flex justify-end gap-2 mt-6">
                         <button type="button" @click="closeModal" class="px-4 py-2 border rounded text-sm">Cancel</button>
                         <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded text-sm" :disabled="form.processing">Save</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Modal Assign Teacher -->
+        <div v-if="showTeacherModal" class="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+            <div class="bg-white rounded-lg p-6 max-w-md w-full">
+                <h2 class="text-lg font-bold mb-2">Assign Teacher</h2>
+                <p class="text-xs text-gray-500 mb-4">
+                    Tentukan pengajar untuk <strong>{{ selectedCourse?.subject?.name }}</strong> ({{ selectedCourse?.school_class?.name }}).
+                </p>
+
+                <form @submit.prevent="submitAssignTeacher" class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium mb-1">Pilih Pengajar (Guru)</label>
+                        <select v-model="teacherForm.teacher_id" class="w-full border rounded p-2 text-sm">
+                            <option value="">-- Belum Ditugaskan / Kosongkan --</option>
+                            <option v-for="t in teachers" :key="t.id" :value="t.id">
+                                {{ t.name }} ({{ t.email }})
+                            </option>
+                        </select>
+                        <div v-if="teacherForm.errors.teacher_id" class="text-red-500 text-xs mt-1">{{ teacherForm.errors.teacher_id }}</div>
+                    </div>
+
+                    <div class="flex justify-end gap-2 mt-6">
+                        <button type="button" @click="closeTeacherModal" class="px-4 py-2 border rounded text-sm">Batal</button>
+                        <button type="submit" class="px-4 py-2 bg-indigo-600 text-white rounded text-sm hover:bg-indigo-700" :disabled="teacherForm.processing">Simpan Penugasan</button>
                     </div>
                 </form>
             </div>

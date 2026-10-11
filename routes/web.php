@@ -49,8 +49,9 @@ Route::middleware('auth')->group(function () {
     Route::resource('majors', MajorController::class)->except(['show', 'destroy']);
     Route::resource('classes', ClassController::class)->except(['show', 'destroy']);
 
-    Route::resource('courses', CourseController::class)->except(['create', 'show', 'edit']);
-    Route::post('courses/{course}/toggle-status', [CourseController::class, 'toggleStatus'])->name('courses.toggle-status');
+   Route::resource('courses', CourseController::class)->except(['create', 'show', 'edit']);
+        Route::post('courses/{course}/toggle-status', [CourseController::class, 'toggleStatus'])->name('courses.toggle-status');
+        Route::put('courses/{course}/assign-teacher', [CourseController::class, 'assignTeacher'])->name('courses.assign-teacher');
 });
 
 

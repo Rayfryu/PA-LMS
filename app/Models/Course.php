@@ -14,6 +14,7 @@ class Course extends Model
         'subject_id',
         'school_class_id',
         'academic_year_id',
+        'teacher_id',
         'is_active',
     ];
 
@@ -34,5 +35,10 @@ class Course extends Model
     public function academicYear(): BelongsTo
     {
         return $this->belongsTo(AcademicYear::class);
+    }
+
+    public function teacher(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'teacher_id');
     }
 }

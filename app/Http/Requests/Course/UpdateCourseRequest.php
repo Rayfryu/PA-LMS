@@ -3,27 +3,55 @@
 namespace App\Http\Requests\Course;
 
 use App\Models\Course;
+use App\Models\Role;
 use App\Models\SchoolClass;
 use Illuminate\Foundation\Http\FormRequest;
-use Illuminate\Validation\Rule;
 use Illuminate\Validation\Validator;
 
 class UpdateCourseRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        $roleName = $this->user()->role?->name ?? ($this->user()->role ?? '');
-        return $roleName === 'admin';
+        $user = $this->user();
+        if (!$user) {
+            return false;
+        }
+
+        // Pengecekan multi-metode agar sinkron dengan StoreCourseRequest
+        if (method_exists($user, 'isAdmin') && $user->isAdmin()) {
+            return true;
+        }
+
+        if (method_exists($user, 'hasRole') && $user->hasRole('admin')) {
+            return true;
+        }
+
+        $roleName = strtolower($user->role?->name ?? '');
+        $roleSlug = strtolower($user->role?->slug ?? '');
+
+        if (in_array('admin', [$roleName, $roleSlug], true)) {
+            return true;
+        }
+
+        if ($user->role_id) {
+            return Role::where('id', $user->role_id)
+                ->where(function ($query) {
+                    $query->where('name', 'like', 'admin')
+                          ->orWhere('slug', 'like', 'admin');
+                })->exists();
+        }
+
+        return false;
     }
 
     public function rules(): array
-{
-    return [
-        'subject_id' => ['required', 'exists:subjects,id'],
-        'school_class_id' => ['required', 'exists:classes,id'],
-        'is_active' => ['boolean'],
-    ];
-}
+    {
+        return [
+            'subject_id' => ['required', 'exists:subjects,id'],
+            'school_class_id' => ['required', 'exists:classes,id'],
+            'is_active' => ['boolean'],
+        ];
+    }
 
     public function withValidator(Validator $validator): void
     {
