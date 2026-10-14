@@ -1,7 +1,9 @@
 <script setup>
 import { ref, watch } from 'vue';
 import { useForm, router } from '@inertiajs/vue3';
+   import { Link } from '@inertiajs/vue3'
 
+   
 const props = defineProps({
     courses: Object,
     subjects: Array,
@@ -155,6 +157,12 @@ const deleteCourse = (course) => {
                             </span>
                         </td>
                         <td v-if="can.update || can.delete" class="p-4 text-right space-x-2">
+                            <Link
+                                :href="`/admin/courses/${course.id}/schedules`"
+                                class="inline-block bg-indigo-600 text-white px-3 py-1 rounded text-sm hover:bg-indigo-700"
+                            >
+                                Atur Jadwal
+                            </Link>
                             <button v-if="can.update" @click="openTeacherModal(course)" class="text-xs px-2 py-1 bg-indigo-50 text-indigo-700 border border-indigo-200 rounded hover:bg-indigo-100 font-medium">
                                 Assign Teacher
                             </button>
